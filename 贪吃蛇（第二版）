@@ -1,0 +1,279 @@
+/**********************************
+*文件名：贪吃蛇游戏
+*描述：贪吃蛇游戏基本，可加速，不可穿墙
+*作者：Neal Caffrey(893399065)
+*时间：2017-05-19
+**********************************/
+#include <stdio.h>
+#include <conio.h>
+#include <windows.h>
+#include <time.h>
+/*********游戏窗口参数**********/
+#define HIGH 23
+#define WIDTH 52
+/***********蛇结构体************/
+typedef struct A {
+	COORD coord;    //蛇体坐标
+	int speed;      //蛇的速度
+	int length;     //蛇的长度
+	char direction; //蛇的方向
+	int score;      //游戏分数
+	int level;      //游戏等级
+	short life;      //生命情况
+	COORD food;     //食物坐标
+	COORD pre;      //前一蛇尾坐标
+	short sign;     //速度判断
+	struct A *next;
+} SNAKE;
+/**********函数声明***********/
+void Gotoxy(int x, int y);   	  	 //移动光标到指定位置
+void Print_Wall() ;            		 //绘制墙画面
+void Print_Snake(SNAKE *head); 		 //绘制蛇和食物
+SNAKE *Initialization(void);    	 //游戏初始化
+void Option(SNAKE *head);      		 //方向控制
+SNAKE *Move(SNAKE *head);       	 //移动蛇
+void Hide_Cursor(void);        		 //隐藏光标
+SNAKE *Find_Tail(SNAKE *head); 		 //找蛇尾巴
+void Creat_Food(SNAKE *head);  		 //产生食物
+int Judgement(SNAKE *head);   		 //情况判断
+
+int main(void) {
+	system("color 81");
+	SNAKE *head;
+	Hide_Cursor();
+	Print_Wall();
+	head = Initialization();
+	Creat_Food(head);
+	while(1) {
+		Option(head);
+		head = Move(head);
+		if(Judgement(head) == 1)
+			break;
+		Print_Snake(head);
+		if(head->sign == 0)
+			Sleep(head->speed);
+		else
+			Sleep(20);
+	}
+	getch();
+}
+int Judgement(SNAKE *head) {    //情况判断
+	int sign;
+	SNAKE *p1 = head->next;
+	SNAKE *tail;
+	sign = 0;
+
+	do {    //判断蛇头是否在身蛇身上
+		if(p1->coord.X==head->coord.X && p1->coord.Y==head->coord.Y) {
+			sign = 1;
+			break;
+		}
+		p1 = p1->next;
+	} while(p1 != head);
+	if(sign == 1)
+		head->life = 0;     //蛇死亡
+	if(head->coord.X==0 || head->coord.X>=HIGH-1 || head->coord.Y==0 || head->coord.Y>=WIDTH-2)
+		head->life = 0;     //蛇死亡
+	if(head->life == 0) {
+		Gotoxy(HIGH/2, WIDTH/3);
+		printf("洗  白!");
+		return 1;
+	}
+	if(head->coord.X==head->food.X && head->coord.Y==head->food.Y) {
+		Creat_Food(head);
+		tail = Find_Tail(head);
+		p1 = (SNAKE *)malloc(sizeof(SNAKE));
+		tail->next = p1;
+		*p1 = *head;
+		p1->coord = head->pre;
+		p1->next = head;
+		head->score += 10;
+		head->length++;
+		if(head->level<6) {
+			if((head->score/10)%8==0) {
+				head->level++;
+				head->speed -= 50;
+			}
+
+		}
+	} else {
+		Gotoxy(head->pre.X, head->pre.Y);
+		printf(" ");
+	}
+
+	return 0;
+}
+SNAKE *Move(SNAKE *head) {      //给我方向我来控制移动
+	SNAKE *tail = Find_Tail(head);
+	Gotoxy(tail->coord.X, tail->coord.Y);
+	head->pre = tail->coord;
+	COORD temp;
+	temp.X = head->coord.X;
+	temp.Y = head->coord.Y;
+	switch(head->direction) {
+		case 'a': {
+			temp.Y -= 2;
+			break;
+		}
+		case 'd': {
+			temp.Y += 2;
+			break;
+		}
+		case 'w': {
+			temp.X -= 1;
+			break;
+		}
+		case 's': {
+			temp.X += 1;
+			break;
+		}
+	}
+	*tail = *head;
+	tail->coord.X = temp.X;
+	tail->coord.Y = temp.Y;
+	tail->next = head;
+	return tail;
+}
+void Option(SNAKE *head) {      //根据按键情况来判断方向
+	char temp;
+	int j;
+	head->sign = 0;
+	if(kbhit()) {
+			/* 判断是否按下键盘，如果按下，ch接收键盘输入 */
+			temp = getch();
+			if(kbhit()) {
+				/* 如果长按键盘，则加速 */
+				head->sign=1;
+			}
+		}
+	switch(temp) {
+		case 'w':
+			if(head->direction == 's');
+			else
+				head->direction = temp;
+			break;
+		case 's':
+			if(head->direction == 'w');
+			else
+				head->direction = temp;
+			break;
+		case 'a':
+			if(head->direction == 'd');
+			else
+				head->direction = temp;
+			break;
+		case 'd':
+			if(head->direction == 'a');
+			else
+				head->direction = temp;
+			break;
+		default:
+			break;
+	}
+}
+void Creat_Food(SNAKE *head) {     //我只管产生食物保证在游戏框内，但不会在蛇身上
+	int x, y, sign;
+	srand(time(NULL));
+	SNAKE *p1 = head;
+	do {
+		x = (rand()%(HIGH-2)+1);
+		y = (rand()%(WIDTH-4)+2)/2*2;
+		p1 = head;
+		sign = 0;
+		do {
+			if(p1->coord.X==x && p1->coord.Y==y) {
+				sign = 1;
+				break;
+			}
+			p1 = p1->next;
+		} while(p1 != head);
+	} while(sign == 1);
+	head->food.X = x;
+	head->food.Y = y;
+}
+void Print_Wall() {     //我只管画墙
+	int x, y;
+	for(x=0; x<HIGH; x++) {
+		if(x==0 || x==HIGH-1) {     //绘制墙的上下边
+			for(y=0; y<WIDTH; y+=2)
+				printf("■");
+			printf("\n");
+		} else {
+			printf("■");
+			Gotoxy(x, WIDTH-2);
+			printf("■\n");
+		}
+	}
+}
+void Gotoxy(int x, int y) {     //给我坐标我只管把光标移动到指定位置
+	COORD coord;
+	coord.X = y;
+	coord.Y = x;
+	HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
+	SetConsoleCursorPosition(handle, coord);
+}
+SNAKE *Initialization(void) {   //我只管蛇的初始化
+	int x = HIGH-5;     //蛇头x坐标
+	int y = 16;         //蛇头y坐标
+	SNAKE *head, *p1, *p2;
+	head = (SNAKE *)malloc(sizeof(SNAKE));
+	head->coord.X = x;  //蛇头坐标为x
+	head->coord.Y = y;  //蛇头坐标为y
+	head->length = 3;   //蛇的长度为3
+	head->level = 1;    //游戏等级为1
+	head->score = 0;    //游戏得分为0
+	head->speed = 350;  //蛇的速度为350ms
+	head->direction = 'd';  //蛇的方向为d
+	head->life = 1;     //蛇存活
+	int i;
+	p1 = head;
+	for(i=0; i<2; i++) {
+		p2 = (SNAKE *)malloc(sizeof(SNAKE));
+		p2->coord.X = x;
+		p2->coord.Y = (y-=2);
+		p1->next = p2;
+		p1 = p2;
+	}
+	p2->next = head;
+	return head;
+}
+SNAKE *Find_Tail(SNAKE *head) {     //给我蛇头我只管找蛇尾巴
+	SNAKE *p1;
+	p1 = head;
+	do {
+		p1 = p1->next;
+	} while(p1->next != head);
+	return p1;
+}
+void Print_Snake(SNAKE *head) {     //给我坐标我只管打印
+	SNAKE *p1 = head;
+	do {
+		Gotoxy(p1->coord.X, p1->coord.Y);
+		printf("○");
+		p1 = p1->next;
+	} while(head != p1);
+	Gotoxy(head->coord.X, head->coord.Y);
+	printf("●");
+	SNAKE *tail = Find_Tail(head);
+	Gotoxy(tail->coord.X, tail->coord.Y);
+	printf("◎");
+	Gotoxy(head->food.X, head->food.Y);
+	printf("★");
+	Gotoxy(0, WIDTH+4);
+	printf("方向控制：a、w、s、d");
+	Gotoxy(2, WIDTH+4);
+	printf("蛇身长度：%d", head->length);
+	Gotoxy(4, WIDTH+4);
+	printf("游戏分数：%d", head->score);
+	Gotoxy(6, WIDTH+4);
+	printf("游戏等级：%d", head->level);
+	Gotoxy(8, WIDTH+4);
+	printf("移动速度：%d", 1000-head->speed);
+}
+void Hide_Cursor(void) {    //我只管隐藏光标
+	CONSOLE_CURSOR_INFO cci;
+	cci.bVisible=0;
+	cci.dwSize=1;
+	HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
+	SetConsoleCursorInfo(handle, &cci);
+}
